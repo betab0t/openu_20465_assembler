@@ -195,13 +195,13 @@ void encode_direct(data_word *dst, symbol_entry *symbol)
         case code:
         case data:
             dst->A = 0;
-            dst->R = 1;
+            dst->R = (char)1;
             dst->E = 0;
             break;
         case external:
             dst->A = 0;
             dst->R = 0;
-            dst->E = 1;
+            dst->E = (char)1;
         default:
             break;
     }

@@ -40,7 +40,7 @@ int write_externals_file(char *file_path, externals_table *external_symbols)
     node *curr_node = external_symbols->head;
     external_item *curr_item;
 
-    snprintf((char *)&name, sizeof(name), "%s.ext", file_path);
+    sprintf((char *)&name, "%s.ext", file_path);
     fh = fopen(name, "w");
     if(fh)
     {

@@ -18,7 +18,7 @@ typedef struct {
     char name[MAX_LABEL_LEN + 1];
     unsigned int val;
     symbol_type type;
-    unsigned short is_entry:1;
+    unsigned int is_entry:1;
 } symbol_entry;
 
 void init_symbol_table(symbol_table *table);

@@ -16,9 +16,9 @@ typedef struct {
 } instruction;
 
 typedef struct {
-    int E:1;
-    int R:1;
-    int A:1;
+    unsigned int E:1;
+    unsigned int R:1;
+    unsigned int A:1;
     int val:21;
 } data_word;
 

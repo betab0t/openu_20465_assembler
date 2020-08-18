@@ -124,7 +124,7 @@ int write_object_file(char *file_path, memory_segment *code_segment, memory_segm
     FILE *fh;
     int number_of_lines_written = -1;
 
-    snprintf((char *)&name, sizeof(name), "%s.ob", file_path);
+    sprintf((char *)&name, "%s.ob", file_path);
     fh = fopen(name, "w");
     if(fh)
     {

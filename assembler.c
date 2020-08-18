@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "first_pass.h"
 #include "second_pass.h"
@@ -49,6 +50,18 @@ void assemble(char *file_path)
     externals_table external_symbols;
     int number_of_errors;
 
+    /* add '.as' type to filename */
+    if(strlen(file_path) < MAX_FILE_PATH - 5) /* make sure we can handle the file name */
+    {
+        sprintf((char *)&filename, "%s.as", file_path);
+    }
+    else
+    {
+        /* if not then stop before doing anything else */
+        printf("ERROR! file path is too long! max is %d!\n", MAX_FILE_PATH);
+        return;
+    }
+    
     /* initialize memory segments with base IC 100 and base DC 0 */
     init_memory_segment(&code_segment, 100);
     init_memory_segment(&data_segment, 0);
@@ -58,10 +71,7 @@ void assemble(char *file_path)
 
     /* initialize the list for external symbols (which we might find on the second pass) */
     init_externals_table(&external_symbols);
-
-    /* add '.as' type to filename */
-    snprintf((char *)&filename, sizeof(filename), "%s.as", file_path);
-
+        
     /* try to open input file if specified by the user */
     fh = fopen(filename, "r");
     if (fh)

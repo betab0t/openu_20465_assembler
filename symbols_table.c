@@ -34,7 +34,8 @@ int add_symbol(symbol_table *table, char *name, unsigned int val, symbol_type ty
             strncpy(new_symbol_entry->name, name, MAX_LABEL_LEN); /* we did check the label is valid so its in proper length */
             new_symbol_entry->val = val;
             new_symbol_entry->type = type;
-
+            new_symbol_entry->is_entry = 0;
+            
             /* insert to memory items list */
             res = insert((list *)table, new_symbol_entry);
         }
@@ -100,7 +101,7 @@ int write_entries_file(symbol_table *table, char *file_path)
     int number_of_lines_written = -1;
     node *curr = table->head;
 
-    snprintf((char *)&name, sizeof(name), "%s.ent", file_path);
+    sprintf((char *)&name, "%s.ent", file_path);
     fh = fopen(name, "w");
     if(fh)
     {
