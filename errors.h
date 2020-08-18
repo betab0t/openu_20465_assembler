@@ -1,0 +1,33 @@
+#ifndef _ERRORS_H
+#define _ERRORS_H
+
+#define SUCCESS 1
+#define OK 1
+
+#define ERR_ILLEGAL_CHAR -1
+#define ERR_INVALID_SYNTAX -2
+#define ERR_INSTRUCTION_NOT_FOUND -3
+#define ERR_INVALID_ADDR_METHOD -4
+#define ERR_INVALID_NUMBER_OF_OPERANDS -6
+#define ERR_NO_SPACE -7
+#define ERR_MEM_ALLOC_FAILED -8
+#define ERR_SYMBOL_ALREADY_EXISTS -9
+#define ERR_OVERFLOW -10
+#define ERR_LEFTOVER -11
+#define ERR_MISSING_SYMBOL -12
+#define ERR_EMPTY_STRING -13
+#define ERR_INVALID_VALUE -14
+#define ERR_INVALID_REG_NAME -15
+#define ERR_VALUE_OUT_OF_RANGE -16
+#define ERR_LABEL_TOO_LONG -17
+#define ERR_INVALID_LABEL -18
+#define ERR_INT24_OVERFLOW -19
+
+#define ERR_NOT_GUIDE_STATEMENT -20
+#define ERR_INVALID_GUIDE -21
+
+#define ERR_COULD_NOT_OPEN_FILE -30
+
+char *error_code_to_string(int error_code);
+
+#endif
