@@ -31,7 +31,7 @@ int add_symbol(symbol_table *table, char *name, unsigned int val, symbol_type ty
         if(res == OK)
         {
             /* copy everything */
-            strcpy(new_symbol_entry->name, name); /* label is in valid length so we can use strcpy */
+            strncpy(new_symbol_entry->name, name, MAX_LABEL_LEN); /* we did check the label is valid so its in proper length */
             new_symbol_entry->val = val;
             new_symbol_entry->type = type;
 

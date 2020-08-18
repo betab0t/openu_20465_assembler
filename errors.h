@@ -22,11 +22,13 @@
 #define ERR_LABEL_TOO_LONG -17
 #define ERR_INVALID_LABEL -18
 #define ERR_INT24_OVERFLOW -19
+#define ERR_INT21_OVERFLOW -20
+#define ERR_MISSING_VALUE -21
 
-#define ERR_NOT_GUIDE_STATEMENT -20
-#define ERR_INVALID_GUIDE -21
+#define ERR_NOT_GUIDE_STATEMENT -30
+#define ERR_INVALID_GUIDE -31
 
-#define ERR_COULD_NOT_OPEN_FILE -30
+#define ERR_COULD_NOT_OPEN_FILE -40
 
 char *error_code_to_string(int error_code);
 

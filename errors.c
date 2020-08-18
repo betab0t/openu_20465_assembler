@@ -44,6 +44,10 @@ char *error_code_to_string(int error_code)
             return "invalid label";
         case ERR_INT24_OVERFLOW:
             return "number too big for 24-bit integer";
+        case ERR_INT21_OVERFLOW:
+            return "number too big for 21-bit integer";
+        case ERR_MISSING_VALUE:
+            return "missing value";
         default:
             return "unknown error code";
     }

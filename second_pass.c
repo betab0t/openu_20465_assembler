@@ -10,13 +10,9 @@
 #include "errors.h"
 #include "externals.h"
 
-/* split operands string into first and second operands */
-int split_operands(char *operands_str, char *operand1, char *operand2)
-{
-    char command[12];
-    int res = sscanf(operands_str, "%s %[^,\r\n],%[^,\r\n]", (char *)&command, operand1, operand2);
-    return res ? --res : res;
-}
+/* check if operand requires an update by its addressing method. use macro to avoid extra function call. */
+#define REQUIRES_UPDATE(addressing_method) (addressing_method == ADDR_DIRECT || addressing_method == ADDR_RELATIVE)
+
 
 /* complete the encoding of instructions which depended on symbols/labels */
 int complete_instruction_encoding(char *line, memory_segment *code_segment, memory_item *curr, symbol_table *symbols, externals_table *external_symbols)
@@ -28,10 +24,12 @@ int complete_instruction_encoding(char *line, memory_segment *code_segment, memo
     int number_of_operands;
     instruction *inst = (instruction *)curr->data;
     data_word *operands = curr->size_in_words > 1 ? (data_word *)(inst + 1) : NULL;
-    number_of_operands = split_operands(line, operand1, operand2);
+
+    /* read the operands */
+    number_of_operands = split_operands(skip_word(line), operand1, operand2);
 
     /* update the source operand if required */
-    if(number_of_operands == 2 && (inst->source_addressing_method == ADDR_DIRECT || inst->source_addressing_method == ADDR_RELATIVE))
+    if(number_of_operands == 2 && REQUIRES_UPDATE(inst->source_addressing_method))
     {
         /* read the symbol name string */
         symbol_name = skip_whitespaces(operand1);
@@ -59,7 +57,7 @@ int complete_instruction_encoding(char *line, memory_segment *code_segment, memo
     }
 
     /* update the destination operand if required */
-    if(res != ERR_MISSING_SYMBOL && (inst->dest_addressing_method == ADDR_DIRECT || inst->dest_addressing_method == ADDR_RELATIVE))
+    if(number_of_operands >= 1 && res != ERR_MISSING_SYMBOL && REQUIRES_UPDATE(inst->dest_addressing_method))
     {
         /* read the symbol name string */
         symbol_name = skip_whitespaces(number_of_operands == 2 ? operand2 : operand1);
@@ -84,7 +82,9 @@ int complete_instruction_encoding(char *line, memory_segment *code_segment, memo
             res = ERR_MISSING_SYMBOL;
         }
     }
-    return res;
+
+    /* we might have invalid operands if so return the error code */
+    return number_of_operands >= 1 ? res : number_of_operands;
 }
 
 /* update a symbol to entry type */
@@ -136,7 +136,8 @@ int second_pass_process_line(char *line, unsigned int line_number, memory_segmen
                 /* complete this instruction's encoding */
                 res = complete_instruction_encoding(line, code_segment, curr, symbols, external_symbols);
             else
-                res = ERR_INSTRUCTION_NOT_FOUND;
+                /* skip instructions we failed to decode in the first pass */
+                res = SUCCESS;
             break;
 
         case ERR_INVALID_GUIDE:

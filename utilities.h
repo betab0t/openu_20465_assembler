@@ -29,6 +29,8 @@ unsigned int chars_to_words(word *dst, char *src);
 unsigned int label_len(char *s);
 char *skip_label(char *str);
 int is_valid_label(char *label);
+char *skip_word(char *line);
+int split_operands(char *operands_str, char *operand1, char *operand2);
 
 int read_guide_statement_type(char *line);
 int read_reg_number(char *s);

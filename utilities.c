@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include "memory_map.h"
 #include "utilities.h"
@@ -54,17 +55,27 @@ char *skip_label(char *str)
 /* convert ascii string integer to 21-bit data word. returns SUCCESS on success, error code otherwise. */
 int read_int21(char *src, data_word *dst)
 {
-    int res = ERR_OVERFLOW;
+    int res = ERR_ILLEGAL_CHAR;
     char *end = NULL;
-    int tmp = (int)strtol(src, &end, 10);
-    if(*end && *(skip_whitespaces(end)))
+    int tmp;
+
+    /* read the value */
+    errno = 0;
+    tmp = (int)strtol(src, &end, 10);
+
+    /* check that all chars are valid digits */
+    if(end != src && *skip_whitespaces(end) == '\x0')
     {
-        res = ERR_LEFTOVER;
-    }
-    else if(INT21_MIN <= tmp && tmp <= INT21_MAX)
-    {
-        dst->val = tmp;
-        res = SUCCESS;
+        /* check that the conversion to 32-bit int worked and also that the result is in 21-bit range */
+        if(errno != ERANGE && INT21_MIN <= tmp && tmp <= INT21_MAX)
+        {
+            dst->val = tmp;
+            res = SUCCESS;
+        }
+        else
+        {
+            res = ERR_INT21_OVERFLOW;
+        }
     }
     return res;
 }
@@ -72,17 +83,27 @@ int read_int21(char *src, data_word *dst)
 /* convert ascii string integer to 24-bit word. returns SUCCESS on success, error code otherwise. */
 int read_int24(char *src, word *dst)
 {
-    int res = ERR_OVERFLOW;
+    int res = ERR_ILLEGAL_CHAR;
     char *end = NULL;
-    int tmp = (int)strtol(src, &end, 10);
-    if(*end && *(skip_whitespaces(end)))
+    int tmp;
+
+    /* read the value */
+    errno = 0;
+    tmp = (int)strtol(src, &end, 10);
+
+    /* check that all chars are valid digits */
+    if(end != src && *skip_whitespaces(end) == '\x0')
     {
-        res = ERR_LEFTOVER;
-    }
-    else if(INT24_MIN <= tmp && tmp <= INT24_MAX)
-    {
-        dst->val = tmp;
-        res = SUCCESS;
+        /* check that the conversion to 32-bit int worked and also that the result is in 24-bit range */
+        if(errno != ERANGE && INT24_MIN <= tmp && tmp <= INT24_MAX)
+        {
+            dst->val = tmp;
+            res = SUCCESS;
+        }
+        else
+        {
+            res = ERR_INT24_OVERFLOW;
+        }
     }
     return res;
 }
@@ -213,3 +234,65 @@ int is_valid_label(char *label)
     }
     return OK;
 }
+
+/* skips the first word separated by whitespaces. returns a pointer a pointer to the start of the second word or to null terminator, whichever comes first */
+char *skip_word(char *line)
+{
+    for(line = skip_whitespaces(line); *line && !isspace(*line) && *line != ','; line++);
+    return line;
+}
+
+/* split operands string into first and second operands. returns number of operands found. */
+int split_operands(char *operands_str, char *operand1, char *operand2)
+{
+    int res = 0;
+    char *start1, *start2, *end1, *end2, *delim;
+
+    /* check that the string is not empty */
+    if(*operands_str)
+    {
+        if(*(start1 = skip_whitespaces(operands_str)))
+        {
+            res++;
+            end1 = skip_word(start1);
+
+            /* split if comma found */
+            delim = skip_whitespaces(end1);
+            if(*delim == ',')
+            {
+                /* make sure its not an empty string */
+                if(*(start2 = skip_whitespaces(delim + 1)))
+                {
+                    res++;
+                    end2 = skip_word(start2);
+
+                    /* check for extra chars */
+                    if(*skip_whitespaces(end2))
+                        res = ERR_INVALID_NUMBER_OF_OPERANDS; /* oops there some extra junk chars here */
+
+                    /* trim second operand */
+                    if(*end2)
+                        *end2 = '\x0';
+                }
+            }
+            else if(*delim)
+            {
+                res = ERR_INVALID_NUMBER_OF_OPERANDS;
+            }
+
+            /* trim whitespaces from the first operand */
+            if(*end1)
+                *end1 = '\x0';
+        }
+    }
+
+    /* copy strings to destination buffers */
+    if(res >= 1)
+        strncpy(operand1, start1, MAX_LABEL_LEN);
+
+    if(res == 2)
+        strncpy(operand2, start2, MAX_LABEL_LEN);
+
+    return res;
+}
+

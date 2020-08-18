@@ -12,116 +12,108 @@
 /* read operands from string. returns total size of encoded instruction on success, error code otherwise. */
 int read_operands(instruction *inst, int instruction_id, word *opt_operands, char *operands_str)
 {
-    int res = 1;
-    int number_of_operands_found = 0;
+    int res = SUCCESS;
+    int number_of_operands_found, size = 1;
     char operand1[LINE_MAX], operand2[LINE_MAX];
-    char junk;
     int source_addressing_method, dest_addressing_method;
     char *dest_operand_str = operand1;
 
     /* try to split the operands string */
-    if(*operands_str)
+    number_of_operands_found = split_operands(operands_str, (char *)&operand1, (char *)&operand2);
+
+    /* make sure we got the currect number of operands for this instruction */
+    if(number_of_operands_found == get_number_of_operands(instruction_id))
     {
-        /* read the operands and also junk chars(if any) */
-        number_of_operands_found = sscanf(operands_str, "%[^,\r\n],%[^,\r\n] %c", (char *)&operand1, (char *)&operand2, &junk);
-
-        /* make sure we got the currect number of operands for this instruction */
-        if(number_of_operands_found == get_number_of_operands(instruction_id))
+        /* decode the source operand(if any) */
+        if(number_of_operands_found == 2)
         {
-            /* decode the source operand(if any) */
-            if(number_of_operands_found == 2)
+            /* read the source operand addressing method */
+            source_addressing_method = read_addressing_method(operand1);
+
+            /* make sure this addressing method is supported by the instruction */
+            if(is_source_addressing_method_supported(instruction_id, source_addressing_method))
             {
-                /* read the source operand addressing method */
-                source_addressing_method = read_addressing_method(operand1);
-
-                /* make sure this addressing method is supported by the instruction */
-                if(is_source_addressing_method_supported(instruction_id, source_addressing_method))
+                inst->source_addressing_method = source_addressing_method;
+                switch (source_addressing_method)
                 {
-                    inst->source_addressing_method = source_addressing_method;
-                    switch (source_addressing_method)
-                    {
-                        case ADDR_REG_DIRECT:
-                            if((inst->source_register = read_reg_number(operand1)) < 0)
-                                res = ERR_INVALID_REG_NAME;
-                            break;
+                    case ADDR_REG_DIRECT:
+                        if((inst->source_register = read_reg_number(operand1)) < 0)
+                            res = ERR_INVALID_REG_NAME;
+                        break;
 
-                        case ADDR_IMMEDIATE:
-                            if(read_int21(skip_whitespaces(operand1) + 1, (data_word *)opt_operands) == SUCCESS)
-                            {
-                                set_flags_absolute((data_word *)opt_operands);
-                                res++;
-                                opt_operands++;
-                            }
-                            else
-                            {
-                                res = ERR_VALUE_OUT_OF_RANGE;
-                            }
-                            break;
-
-                        case ADDR_RELATIVE:
-                        case ADDR_DIRECT:
-                            /* save space for relative and direct addressing mode operands */
-                            res++;
-                            /* forward for the destination operand */
+                    case ADDR_IMMEDIATE:
+                        res = read_int21(skip_whitespaces(operand1) + 1, (data_word *)opt_operands);
+                        if(res == SUCCESS)
+                        {
+                            set_flags_absolute((data_word *)opt_operands);
+                            size++;
                             opt_operands++;
-                            break;
-                    }
-                    dest_operand_str = skip_whitespaces(operand2); /* fix the destination operand string */
+                        }
+                        else
+                        {
+                            res = ERR_INT21_OVERFLOW;
+                        }
+                        break;
+
+                    case ADDR_RELATIVE:
+                    case ADDR_DIRECT:
+                        /* forward for the destination operand */
+                        opt_operands++;
+                        size++;
+                        break;
                 }
-                else
-                {
-                    res = ERR_INVALID_ADDR_METHOD;
-                }
+                dest_operand_str = skip_whitespaces(operand2); /* fix the destination operand string */
             }
-
-            /* encode the destination operand only if we didn't encounter any errors on the way */
-            if(res >= 1)
+            else
             {
-                dest_addressing_method = read_addressing_method(dest_operand_str);
-                if(is_dest_addressing_method_supported(instruction_id, dest_addressing_method))
-                {
-                    inst->dest_addressing_method = dest_addressing_method;
-                    switch (dest_addressing_method)
-                    {
-                        case ADDR_REG_DIRECT:
-                            if((inst->dest_register = read_reg_number(dest_operand_str)) < 0)
-                                res = ERR_INVALID_REG_NAME;
-                            break;
-
-                        case ADDR_IMMEDIATE:
-                            /* read value as 21 bits long integer */
-                            if(read_int21(skip_whitespaces(dest_operand_str) + 1, (data_word *)opt_operands) == SUCCESS)
-                            {
-                                set_flags_absolute((data_word *)opt_operands); /* set ARE flags */
-                                res++;
-                            }
-                            else
-                            {
-                                res = ERR_VALUE_OUT_OF_RANGE;
-                            }
-                            break;
-                        case ADDR_RELATIVE:
-                        case ADDR_DIRECT:
-                            res++; /* save space for relative and direct addressing mode operands */
-                            break;
-                    }
-                }
-                else
-                {
-                    res = ERR_INVALID_ADDR_METHOD;
-                }
+                res = ERR_INVALID_ADDR_METHOD;
             }
         }
-        else
+
+        /* encode the destination operand only if we didn't encounter any errors on the way */
+        if(number_of_operands_found >=0 && res >= 0)
         {
-            res = ERR_INVALID_NUMBER_OF_OPERANDS;
+            dest_addressing_method = read_addressing_method(dest_operand_str);
+            if(is_dest_addressing_method_supported(instruction_id, dest_addressing_method))
+            {
+                inst->dest_addressing_method = dest_addressing_method;
+                switch (dest_addressing_method)
+                {
+                    case ADDR_REG_DIRECT:
+                        if((inst->dest_register = read_reg_number(dest_operand_str)) < 0)
+                            res = ERR_INVALID_REG_NAME;
+                        break;
+
+                    case ADDR_IMMEDIATE:
+                        /* read value as 21 bits long integer */
+                        res = read_int21(skip_whitespaces(dest_operand_str) + 1, (data_word *)opt_operands);
+                        if(res == SUCCESS)
+                        {
+                            set_flags_absolute((data_word *)opt_operands); /* set ARE flags */
+                            size++;
+                        }
+                        else
+                        {
+                            res = ERR_INT21_OVERFLOW;
+                        }
+                        break;
+                    case ADDR_RELATIVE:
+                    case ADDR_DIRECT: /* we'll only save space for relative and direct addressing mode operands */
+                        size++;
+                        break;
+                }
+            }
+            else
+            {
+                res = ERR_INVALID_ADDR_METHOD;
+            }
         }
     }
     else
     {
-        res = 1;
+        res = ERR_INVALID_NUMBER_OF_OPERANDS;
     }
-    return res;
+    return res >= 0 ? size : res;
 }
 
 /* read instruction name and operands from strings and decode to dst */
@@ -138,7 +130,10 @@ int read_instruction_name_and_operands(word **dst, char *instruction_name_str, c
         {
             /* decoded instruction and operands */
             init_instruction((instruction *)*dst, instruction_id);
-            res = read_operands((instruction *)*dst, instruction_id, *dst + 1, operands_str);
+            if(*skip_whitespaces(operands_str)) /* avoid no-operands instructions */
+                res = read_operands((instruction *)*dst, instruction_id, *dst + 1, operands_str);
+            else
+                res = 1;
         }
         else
         {
@@ -189,13 +184,12 @@ int read_data_declaration_inner(word *buf, char *data_str)
         if(!strlen(start))
         {
             /* no value to read */
-            res = ERR_EMPTY_STRING;
+            res = ERR_MISSING_VALUE;
             break;
         }
         else if((res = read_int24(start, &tmp)) != SUCCESS)
         {
             /* not a valid decimal number */
-            res = ERR_INT24_OVERFLOW;
             break;
         }
         /* save current value */
@@ -217,26 +211,25 @@ int read_data_declaration(word **dst, char *data_str)
 
     /* count how many commas we got so we know how many data items should be */
     expected_number_of_items = count_occurrences(',', data_str) + 1;
-    if(expected_number_of_items)
+    buf = calloc(expected_number_of_items, sizeof(word));
+    if(buf)
     {
-        buf = calloc(expected_number_of_items, sizeof(word));
-        if(buf)
+        /* read and make sure the we got the right number of items */
+        res = read_data_declaration_inner(buf, data_str);
+        if (res == expected_number_of_items)
         {
-            /* read and make sure the we got the right number of items */
-            res = read_data_declaration_inner(buf, data_str);
-            if (res == expected_number_of_items)
-            {
-                *dst = buf;
-            }
-            else
-            {
-                free(buf); /* free this buffer because it wont be used */
-            }
+            *dst = buf;
         }
         else
         {
-            res = ERR_MEM_ALLOC_FAILED;
+            if(res > 0)
+                res = ERR_INVALID_VALUE;
+            free(buf); /* free this buffer because it wont be used */
         }
+    }
+    else
+    {
+        res = ERR_MEM_ALLOC_FAILED;
     }
     return res;
 }
@@ -293,27 +286,34 @@ int read_extern_declaration(char *buf, symbol_table *symbols)
 int read_guide_line(word **dst, char *line, symbol_table *symbols)
 {
     int res = ERR_INVALID_SYNTAX;
+    char *declaration_type;
 
     /* check for prepended dot */
     if (*line++ != '.')
         return 0;
 
+    /* split the declaration type string */
+    declaration_type = skip_whitespaces(line);
+    line = skip_word(line);
+    *line = '\x0';
+    line = skip_whitespaces(++line);
+
     /* read declaration by its type */
-    if (STARTS_WITH(line, "data"))
+    if (STARTS_WITH(declaration_type, "data"))
     {
-        res = read_data_declaration(dst, line + 4);
+        res = read_data_declaration(dst, line);
     }
-    else if (STARTS_WITH(line, "string"))
+    else if (STARTS_WITH(declaration_type, "string"))
     {
-        res = read_string_declaration(dst, line + 6);
+        res = read_string_declaration(dst, line);
     }
-    else if (STARTS_WITH(line, "entry"))
+    else if (STARTS_WITH(declaration_type, "entry"))
     {
         res = 0; /* we'll handle it on the second pass */
     }
-    else if (STARTS_WITH(line, "extern"))
+    else if (STARTS_WITH(declaration_type, "extern"))
     {
-        res = read_extern_declaration(line + 6, symbols);
+        res = read_extern_declaration(line, symbols);
     }
     return res;
 }
@@ -327,7 +327,6 @@ int process_line(char *line, unsigned int line_number, memory_segment *code_segm
     word *machine_code;
     symbol_type type = data;
     char *sep;
-
     /* check for label at the start of this line */
     if((sep = strchr(line, ':')))
     {
